@@ -167,6 +167,62 @@ def demo_multi_encoder():
     shutil.rmtree("temp_multi", ignore_errors=True)
 
 
+def demo_high_cardinality_auto():
+    """演示高基数列自动降级为标签编码。"""
+    print_section("7. 高基数自动降级 (max_categories=5)")
+
+    import numpy as np
+    n_rows = 20
+    data = pd.DataFrame({
+        "category_low": np.random.choice(["A", "B", "C"], size=n_rows),
+        "category_high": [f"cat_{i}" for i in range(n_rows)],
+        "value": list(range(n_rows)),
+    })
+    print(f"原始数据 (category_low: {data['category_low'].nunique()} 个类别, "
+          f"category_high: {data['category_high'].nunique()} 个类别):")
+    print(data.head(10))
+
+    print("\n使用 onehot 编码，max_categories=5，超过阈值自动降级为 label")
+    import warnings
+    warnings.filterwarnings("always")
+    encoder = CategoricalEncoder(
+        columns=["category_low", "category_high"],
+        encoding_type="onehot",
+        max_categories=5,
+        high_cardinality_strategy="auto",
+    )
+    encoded = encoder.fit_transform(data)
+
+    print("\n编码后数据形状:", encoded.shape)
+    print("各列实际编码类型:", encoder.get_actual_encoding())
+    print("\n编码后数据 (前 10 行):")
+    print(encoded.head(10))
+
+    print("\n反向解码验证:")
+    decoded = encoder.inverse_transform(encoded)
+    print(decoded[["category_low", "category_high"]].head(10))
+
+
+def demo_high_cardinality_raise():
+    """演示高基数列触发错误。"""
+    print_section("8. 高基数 raise 策略 (主动报错)")
+
+    data = pd.DataFrame({
+        "category_high": [f"item_{i}" for i in range(150)],
+    })
+    print(f"数据: {len(data)} 行，{data['category_high'].nunique()} 个唯一类别")
+
+    try:
+        encoder = CategoricalEncoder(
+            encoding_type="onehot",
+            max_categories=100,
+            high_cardinality_strategy="raise",
+        )
+        encoder.fit(data)
+    except ValueError as e:
+        print(f"\n触发 ValueError (预期行为):\n  {e}")
+
+
 def main():
     print("分类变量编码服务 - 使用示例")
     print("Python + Pandas 实现")
@@ -177,6 +233,8 @@ def main():
     demo_new_data_transform()
     demo_save_load()
     demo_multi_encoder()
+    demo_high_cardinality_auto()
+    demo_high_cardinality_raise()
 
     print_section("全部演示完成")
 
