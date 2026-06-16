@@ -223,6 +223,104 @@ def demo_high_cardinality_raise():
         print(f"\n触发 ValueError (预期行为):\n  {e}")
 
 
+def demo_frequency_encoding():
+    """演示频率编码。"""
+    print_section("9. 频率编码 (Frequency Encoding)")
+
+    data = pd.DataFrame({
+        "category": ["A", "B", "A", "C", "B", "A", "D", "B", "C", "A"],
+        "value": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+    })
+    print("原始数据:")
+    print(data)
+    print("\n各类别出现频率:")
+    print(data["category"].value_counts(normalize=True))
+
+    encoder = CategoricalEncoder(columns=["category"], encoding_type="frequency")
+    encoded = encoder.fit_transform(data)
+
+    print("\n编码后数据:")
+    print(encoded)
+
+    print("\n编码映射:")
+    for col, mapping in encoder.get_mapping().items():
+        print(f"  {col}: {mapping}")
+
+    print("\n未见类别处理 (新类别 'E'):")
+    new_data = pd.DataFrame({"category": ["A", "E", "B"]})
+    transformed = encoder.transform(new_data)
+    print(transformed)
+
+    print("\n反向解码 (最近值匹配):")
+    decoded = encoder.inverse_transform(encoded)
+    print(decoded[["category"]])
+
+
+def demo_target_encoding():
+    """演示目标编码。"""
+    print_section("10. 目标编码 (Target Encoding)")
+
+    data = pd.DataFrame({
+        "city": ["北京", "上海", "北京", "广州", "上海", "北京", "深圳", "广州", "上海", "北京"],
+        "sales": [100, 150, 120, 80, 200, 110, 90, 70, 180, 130],
+    })
+    print("原始数据:")
+    print(data)
+    print("\n各城市平均销售额:")
+    print(data.groupby("city")["sales"].mean())
+    print(f"\n全局平均销售额: {data['sales'].mean():.2f}")
+
+    encoder = CategoricalEncoder(
+        columns=["city"],
+        encoding_type="target",
+        target_smoothing=1.0,
+    )
+    encoded = encoder.fit_transform(data, y=data["sales"])
+
+    print("\n编码后数据 (平滑系数=1.0):")
+    print(encoded)
+
+    print("\n编码映射:")
+    for col, mapping in encoder.get_mapping().items():
+        print(f"  {col}:")
+        for k, v in mapping.items():
+            print(f"    {k}: {v:.4f}")
+
+    print("\n未见类别处理 (新城市 '杭州'):")
+    new_data = pd.DataFrame({"city": ["北京", "杭州", "上海"], "sales": [0, 0, 0]})
+    transformed = encoder.transform(new_data)
+    print(transformed[["city"]])
+
+
+def demo_multi_encoder_all_types():
+    """演示多策略编码器混合所有编码类型。"""
+    print_section("11. 多策略混合编码 (四种编码方式)")
+
+    data = pd.DataFrame({
+        "color": ["red", "blue", "green", "red", "blue"],
+        "size": ["S", "M", "L", "M", "S"],
+        "category": ["A", "B", "A", "C", "B"],
+        "city": ["北京", "上海", "北京", "广州", "上海"],
+        "target": [1.0, 2.0, 1.5, 3.0, 2.5],
+    })
+    print("原始数据:")
+    print(data)
+
+    strategy = {
+        "color": "onehot",
+        "size": "label",
+        "category": "frequency",
+        "city": "target",
+    }
+    print(f"\n编码策略: {strategy}")
+
+    encoder = MultiEncoder(strategy, target_smoothing=0.5)
+    encoded = encoder.fit_transform(data, y=data["target"])
+
+    print("\n编码后数据:")
+    print(encoded)
+
+
 def main():
     print("分类变量编码服务 - 使用示例")
     print("Python + Pandas 实现")
@@ -235,6 +333,9 @@ def main():
     demo_multi_encoder()
     demo_high_cardinality_auto()
     demo_high_cardinality_raise()
+    demo_frequency_encoding()
+    demo_target_encoding()
+    demo_multi_encoder_all_types()
 
     print_section("全部演示完成")
 
